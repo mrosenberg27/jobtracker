@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Tracker</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        function JobTracker() {
+          const [applications, setApplications] = useState([]);
+          const [editingId, setEditingId] = useState(null);
+          const [editForm, setEditForm] = useState({});
+          const [newApp, setNewApp] = useState({
+            company: '',
+            position: '',
+            status: 'Not Applied',
+            dateApplied: '',
+            jobDescription: '',
+            coverLetter: '',
+            resume: '',
+            notes: ''
+          });
+
+          useEffect(() => {
+            loadData();
+          }, []);
+
+          const loadData = () => {
+            try {
+              const saved = localStorage.getItem('job-applications');
+              if (saved) {
+                setApplications(JSON.parse(saved));
+              }
+            } catch (error) {
+              console.log('No saved data found');
+            }
+          };
+
+          const saveData = (data) => {
+            try {
+              localStorage.setItem('job-applications', JSON.stringify(data));
+            } catch (error) {
+              console.error('Error saving data:', error);
+            }
+          };
+
+          const addApplication = () => {
+            if (!newApp.company || !newApp.position) return;
+            
+            const updated = [...applications, { ...newApp, id: Date.now() }];
+            setApplications(updated);
+            saveData(updated);
+            setNewApp({
+              company: '',
+              position: '',
+              status: 'Not Applied',
+              dateApplied: '',
+              jobDescription: '',
+              coverLetter: '',
+              resume: '',
+              notes: ''
+            });
+          };
+
+          const deleteApplication = (id) => {
+            const updated = applications.filter(app => app.id !== id);
+            setApplications(updated);
+            saveData(updated);
+          };
+
+          const startEdit = (app) => {
+            setEditingId(app.id);
+            setEditForm({ ...app });
+          };
+
+          const saveEdit = () => {
+            const updated = applications.map(app => 
+              app.id === editingId ? editForm : app
+            );
+            setApplications(updated);
+            saveData(updated);
+            setEditingId(null);
+          };
+
+          const cancelEdit = () => {
+            setEditingId(null);
+            setEditForm({});
+          };
+
+          const exportData = () => {
+            const dataStr = JSON.stringify(applications, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'job-applications.json';
+            link.click();
+          };
+
+          const importData = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              try {
+                const imported = JSON.parse(event.target.result);
+                setApplications(imported);
+                saveData(imported);
+              } catch (error) {
+                alert('Error importing file');
+              }
+            };
+            reader.readAsText(file);
+          };
+
+          const statuses = ['Not Applied', 'Applied', 'Interview Scheduled', 'Interviewed', 'Offer', 'Rejected', 'Withdrawn'];
+
+          return (
+            <div className="min-h-screen bg-gray-50 p-6">
+              <div className="max-w-7xl mx-auto">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex justify-between items-center mb-4">
+                      <h1 className="text-2xl font-bold text-gray-900">Job Application Tracker</h1>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={exportData}
+                          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium"
+                        >
+                          Export
+                        </button>
+                        <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium cursor-pointer">
+                          Import
+                          <input type="file" accept=".json" onChange={importData} className="hidden" />
+                        </label>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600">Track your job applications, resumes, and cover letters in one place</p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Company</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Position</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date Applied</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Job Description</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Cover Letter</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Resume</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Notes</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {applications.map(app => (
+                          <tr key={app.id} className="hover:bg-gray-50">
+                            {editingId === app.id ? (
+                              <>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="text"
+                                    value={editForm.company}
+                                    onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="text"
+                                    value={editForm.position}
+                                    onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <select
+                                    value={editForm.status}
+                                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                  >
+                                    {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                  </select>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="date"
+                                    value={editForm.dateApplied}
+                                    onChange={(e) => setEditForm({ ...editForm, dateApplied: e.target.value })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="text"
+                                    value={editForm.jobDescription}
+                                    onChange={(e) => setEditForm({ ...editForm, jobDescription: e.target.value })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    placeholder="URL or text"
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="text"
+                                    value={editForm.coverLetter}
+                                    onChange={(e) => setEditForm({ ...editForm, coverLetter: e.target.value })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    placeholder="URL or filename"
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="text"
+                                    value={editForm.resume}
+                                    onChange={(e) => setEditForm({ ...editForm, resume: e.target.value })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    placeholder="URL or filename"
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="text"
+                                    value={editForm.notes}
+                                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex gap-1">
+                                    <button onClick={saveEdit} className="p-1 text-green-600 hover:bg-green-50 rounded">
+                                      ✓
+                                    </button>
+                                    <button onClick={cancelEdit} className="p-1 text-gray-600 hover:bg-gray-100 rounded">
+                                      ✕
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-4 py-3 text-sm text-gray-900">{app.company}</td>
+                                <td className="px-4 py-3 text-sm text-gray-900">{app.position}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                    app.status === 'Offer' ? 'bg-green-100 text-green-800' :
+                                    app.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                    app.status === 'Interview Scheduled' || app.status === 'Interviewed' ? 'bg-blue-100 text-blue-800' :
+                                    app.status === 'Applied' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {app.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-900">{app.dateApplied}</td>
+                                <td className="px-4 py-3 text-sm text-gray-600">{app.jobDescription}</td>
+                                <td className="px-4 py-3 text-sm text-gray-600">{app.coverLetter}</td>
+                                <td className="px-4 py-3 text-sm text-gray-600">{app.resume}</td>
+                                <td className="px-4 py-3 text-sm text-gray-600">{app.notes}</td>
+                                <td className="px-4 py-3">
+                                  <div className="flex gap-1">
+                                    <button onClick={() => startEdit(app)} className="p-1 text-blue-600 hover:bg-blue-50 rounded">
+                                      ✎
+                                    </button>
+                                    <button onClick={() => deleteApplication(app.id)} className="p-1 text-red-600 hover:bg-red-50 rounded">
+                                      🗑
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        ))}
+                        <tr className="bg-blue-50">
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={newApp.company}
+                              onChange={(e) => setNewApp({ ...newApp, company: e.target.value })}
+                              placeholder="Company name"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={newApp.position}
+                              onChange={(e) => setNewApp({ ...newApp, position: e.target.value })}
+                              placeholder="Position"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={newApp.status}
+                              onChange={(e) => setNewApp({ ...newApp, status: e.target.value })}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            >
+                              {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="date"
+                              value={newApp.dateApplied}
+                              onChange={(e) => setNewApp({ ...newApp, dateApplied: e.target.value })}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={newApp.jobDescription}
+                              onChange={(e) => setNewApp({ ...newApp, jobDescription: e.target.value })}
+                              placeholder="URL or text"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={newApp.coverLetter}
+                              onChange={(e) => setNewApp({ ...newApp, coverLetter: e.target.value })}
+                              placeholder="URL or filename"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={newApp.resume}
+                              onChange={(e) => setNewApp({ ...newApp, resume: e.target.value })}
+                              placeholder="URL or filename"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={newApp.notes}
+                              onChange={(e) => setNewApp({ ...newApp, notes: e.target.value })}
+                              placeholder="Notes"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={addApplication}
+                              className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                              title="Add application"
+                            >
+                              +
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {applications.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      <p className="text-lg mb-2">No applications yet</p>
+                      <p className="text-sm">Add your first job application using the form above</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 text-sm text-gray-600 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                  <h3 className="font-semibold mb-2">Summary</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">{applications.length}</div>
+                      <div className="text-xs text-gray-600">Total Applications</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-yellow-600">{applications.filter(a => a.status === 'Applied').length}</div>
+                      <div className="text-xs text-gray-600">Applied</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">{applications.filter(a => a.status === 'Interview Scheduled' || a.status === 'Interviewed').length}</div>
+                      <div className="text-xs text-gray-600">Interviews</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">{applications.filter(a => a.status === 'Offer').length}</div>
+                      <div className="text-xs text-gray-600">Offers</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        ReactDOM.render(<JobTracker />, document.getElementById('root'));
+    </script>
+</body>
+</html>
